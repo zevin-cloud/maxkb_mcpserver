@@ -55,13 +55,32 @@ install_dependencies() {
     
     if [[ "$OS" == *"Ubuntu"* ]] || [[ "$OS" == *"Debian"* ]]; then
         apt-get update
-        apt-get install -y python3 python3-pip python3-venv git
-    elif [[ "$OS" == *"CentOS"* ]] || [[ "$OS" == *"Red Hat"* ]] || [[ "$OS" == *"Fedora"* ]]; then
-        yum update -y
-        yum install -y python3 python3-pip git
+        apt-get install -y python3 python3-pip python3-venv git curl
+    elif [[ "$OS" == *"CentOS"* ]] || [[ "$OS" == *"Red Hat"* ]] || [[ "$OS" == *"Rocky"* ]] || [[ "$OS" == *"AlmaLinux"* ]] || [[ "$OS" == *"Fedora"* ]]; then
+        # 检测包管理器 (yum 或 dnf)
+        if command -v dnf &> /dev/null; then
+            dnf update -y
+            dnf install -y python3 python3-pip git curl
+        else
+            yum update -y
+            yum install -y python3 python3-pip git curl
+        fi
     else
-        print_error "不支持的操作系统: $OS"
-        exit 1
+        print_warn "未明确支持的操作系统: $OS，尝试使用通用方法..."
+        # 尝试检测包管理器
+        if command -v apt-get &> /dev/null; then
+            apt-get update
+            apt-get install -y python3 python3-pip python3-venv git curl
+        elif command -v dnf &> /dev/null; then
+            dnf update -y
+            dnf install -y python3 python3-pip git curl
+        elif command -v yum &> /dev/null; then
+            yum update -y
+            yum install -y python3 python3-pip git curl
+        else
+            print_error "无法确定包管理器，请手动安装 Python 3.10+、pip 和 git"
+            exit 1
+        fi
     fi
     
     print_info "依赖安装完成"
