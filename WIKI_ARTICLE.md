@@ -402,3 +402,28 @@ MaxKB MCP Server 是连接 MaxKB 知识库与 MCP 生态的关键组件，它：
 | 版本 | 日期 | 更新内容 |
 |-----|------|---------|
 | 0.1.0 | 2025-02 | 初始版本，支持基础检索功能 |
+
+
+
+# 1. 下载项目
+git clone https://github.com/zevin-cloud/maxkb_mcpserver.git
+cd maxkb_mcpserver
+
+# 2. 配置环境变量
+cp .env.example .env
+nano .env  # 填写 MaxKB 地址和 API Key
+
+# 3. 启动服务
+docker-compose up -d
+
+# 4. 验证
+curl http://localhost:3000/sse
+
+然后配置 Dify：
+
+{
+  "maxkb": {
+    "url": "http://192.168.123.180:3008/sse",
+    "transport": "sse"
+  }
+}
