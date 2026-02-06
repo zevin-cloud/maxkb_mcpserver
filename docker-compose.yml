@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  maxkb-mcp-server:
+    build: .
+    image: maxkb-mcp-server:latest
+    container_name: maxkb-mcp-server
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    environment:
+      - MAXKB_BASE_URL=${MAXKB_BASE_URL}
+      - MAXKB_API_KEY=${MAXKB_API_KEY}
+      - MAXKB_WORKSPACE_ID=${MAXKB_WORKSPACE_ID:-default}
+      - MCP_TRANSPORT=${MCP_TRANSPORT:-sse}
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=3000
+      - MCP_SERVER_NAME=${MCP_SERVER_NAME:-maxkb-knowledge-base}
+      - MCP_SERVER_VERSION=${MCP_SERVER_VERSION:-0.1.0}
+    restart: unless-stopped
+    networks:
+      - maxkb-mcp-network
+
+networks:
+  maxkb-mcp-network:
+    driver: bridge
