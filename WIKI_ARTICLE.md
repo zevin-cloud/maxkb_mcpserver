@@ -209,7 +209,37 @@ cp .env.example .env
 python -m src
 ```
 
-### 4.3 配置说明
+### 4.3 Docker 部署（推荐）
+
+使用 Docker 可以快速部署，无需配置 Python 环境：
+
+```bash
+# 1. 下载项目
+git clone https://github.com/zevin-cloud/maxkb_mcpserver.git
+cd maxkb_mcpserver
+
+# 2. 配置环境变量
+cp .env.example .env
+nano .env  # 填写 MaxKB 地址和 API Key
+
+# 3. 启动服务
+docker-compose up -d
+
+# 4. 验证
+curl http://localhost:3000/sse
+```
+
+**Docker 常用命令：**
+
+| 命令 | 说明 |
+|-----|------|
+| `docker-compose up -d` | 后台启动服务 |
+| `docker-compose down` | 停止服务 |
+| `docker-compose logs -f` | 查看实时日志 |
+| `docker-compose restart` | 重启服务 |
+| `docker-compose pull && docker-compose up -d` | 更新到最新版本 |
+
+### 4.4 配置说明
 
 ```env
 # MaxKB API 配置
