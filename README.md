@@ -1,72 +1,77 @@
 # MaxKB MCP Server
 
-基于 MCP (Model Context Protocol) 的 MaxKB 知识库检索服务器，让 AI 助手可以通过标准协议访问 MaxKB 知识库。
+MaxKB 知识库的 MCP (Model Context Protocol) 服务，支持通过 SSE 或 stdio 方式访问 MaxKB 知识库。
 
-## 功能特性
+## 功能
 
-- **知识库列表**: 列出所有可用的知识库
-- **知识库搜索**: 在指定知识库中搜索相关内容
-- **智能问答**: 向知识库提问，获取 AI 生成的答案
-- **MCP 协议**: 基于标准 MCP 协议，兼容 Claude Desktop 等客户端
+- **list_knowledge_bases** - 列出所有知识库
+- **get_knowledge_base_info** - 获取知识库详情
+- **search_knowledge_base** - 搜索知识库内容（支持向量检索和关键词检索）
 
-## 安装
+## 安装依赖
 
-### 环境要求
-
-- Python 3.10+
-- MaxKB 服务已部署并运行
-
-### 安装步骤
-
-1. 克隆或下载本项目
-
-2. 安装依赖
 ```bash
-pip install -e .
-```
-
-3. 配置环境变量
-```bash
-cp .env.example .env
-# 编辑 .env 文件，填写你的 MaxKB 配置
+pip install -r requirements.txt
 ```
 
 ## 配置
 
-创建 `.env` 文件并配置以下参数：
+编辑 `.env` 文件：
 
 ```env
 # MaxKB API Configuration
-MAXKB_BASE_URL=http://localhost:8080    # MaxKB 服务地址
-MAXKB_API_KEY=your-api-key-here         # MaxKB API 密钥
+MAXKB_BASE_URL=https://mk2.lovekd.top:20000
+MAXKB_API_KEY=your-api-key
+
+# MaxKB Workspace Configuration
+MAXKB_WORKSPACE_ID=default
 
 # MCP Server Configuration
 MCP_SERVER_NAME=maxkb-knowledge-base
 MCP_SERVER_VERSION=0.1.0
+
+# Transport Configuration
+# Options: stdio, sse
+MCP_TRANSPORT=sse
+MCP_HOST=0.0.0.0
+MCP_PORT=3000
 ```
 
-### 获取 MaxKB API Key
+## 运行方式
 
-1. 登录 MaxKB 管理后台
-2. 进入「系统管理」->「API 密钥」
-3. 创建新的 API 密钥并复制
-
-## 使用
-
-### 启动服务器
+### 方式 1：SSE 模式（推荐）
 
 ```bash
 python -m src
 ```
 
-### 在 Claude Desktop 中使用
+服务启动后：
+- SSE 端点：`http://0.0.0.0:3000/sse`
+- 消息端点：`http://0.0.0.0:3000/messages/`
 
-1. 安装 Claude Desktop
-2. 编辑配置文件：
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%/Claude/claude_desktop_config.json`
+### 方式 2：stdio 模式
 
-3. 添加 MCP Server 配置：
+```bash
+python -m src
+```
+
+（需要设置 `MCP_TRANSPORT=stdio`）
+
+## 外部系统配置
+
+### Dify 配置
+
+```json
+{
+  "mcpServers": {
+    "maxkb": {
+      "url": "http://your-server-ip:3000/sse"
+    }
+  }
+}
+```
+
+### Claude Desktop 配置
 
 ```json
 {
@@ -74,96 +79,49 @@ python -m src
     "maxkb": {
       "command": "python",
       "args": ["-m", "src"],
+      "cwd": "/path/to/maxkb_mcpserver",
       "env": {
-        "MAXKB_BASE_URL": "http://localhost:8080",
-        "MAXKB_API_KEY": "your-api-key-here"
+        "MAXKB_BASE_URL": "https://mk2.lovekd.top:20000",
+        "MAXKB_API_KEY": "your-api-key",
+        "MCP_TRANSPORT": "stdio"
       }
     }
   }
 }
 ```
 
-4. 重启 Claude Desktop，即可使用 MaxKB 工具
-
-## 可用工具
-
-### 1. list_knowledge_bases
-
-列出所有可用的知识库。
-
-**返回值**: 知识库列表（ID、名称、描述、文档数量）
-
-### 2. get_knowledge_base_info
-
-获取指定知识库的详细信息。
-
-**参数**:
-- `knowledge_base_id`: 知识库 ID
-
-### 3. search_knowledge_base
-
-在知识库中搜索相关内容。
-
-**参数**:
-- `query`: 搜索关键词
-- `knowledge_base_id`: 知识库 ID
-- `top_k`: 返回结果数量（1-20，默认 5）
-
-**返回值**: 搜索结果列表（内容、标题、来源、相似度）
-
-### 4. ask_question
-
-向知识库提问，获取 AI 生成的答案。
-
-**参数**:
-- `question`: 问题内容
-- `knowledge_base_id`: 知识库 ID
-
-**返回值**: 答案和引用的参考资料
-
-## 开发
-
-### 代码格式化
-
-```bash
-ruff format src
-ruff check --fix src
-```
-
-### 类型检查
-
-```bash
-mypy src
-```
-
 ## 项目结构
 
 ```
-maxkb-mcp-server/
+maxkb_mcpserver/
 ├── src/
-│   ├── __init__.py          # 包初始化
-│   ├── __main__.py          # 入口文件
-│   ├── server.py            # MCP Server 主逻辑
-│   ├── client.py            # MaxKB API 客户端
-│   ├── models.py            # 数据模型
-│   └── config.py            # 配置管理
-├── pyproject.toml           # 项目配置
-├── .env.example             # 环境变量示例
-└── README.md                # 本文档
+│   ├── __init__.py
+│   ├── __main__.py      # 入口文件
+│   ├── server.py        # MCP Server 实现
+│   ├── client.py        # MaxKB API 客户端
+│   ├── config.py        # 配置管理
+│   └── models.py        # 数据模型
+├── .env                 # 环境变量配置
+├── requirements.txt     # 依赖列表
+└── README.md           # 本文件
 ```
 
-## 技术栈
+## 测试
 
-- **FastMCP**: MCP Python 框架
-- **httpx**: 异步 HTTP 客户端
-- **pydantic**: 数据模型验证
+```bash
+# 测试知识库列表
+python -c "import asyncio; from src.client import MaxKBClient; c = MaxKBClient(); print(asyncio.run(c.list_knowledge_bases()))"
 
-## 许可证
+# 测试搜索
+python test_search2.py
+```
 
-MIT License
+## 提示词模板
 
-## 相关链接
+见 `prompt_external.md` 文件，包含完整的 MCP 调用提示词。
 
-- [MaxKB 官网](https://maxkb.cn/)
-- [MaxKB GitHub](https://github.com/1Panel-dev/MaxKB)
-- [MCP 协议文档](https://modelcontextprotocol.io/)
+## 注意事项
+
+1. 确保 MaxKB API Key 有效
+2. 确保防火墙允许访问 3000 端口（SSE 模式）
+3. 首次使用建议先调用 `list_knowledge_bases` 获取知识库列表

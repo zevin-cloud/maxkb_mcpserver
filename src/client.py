@@ -4,8 +4,6 @@ import httpx
 
 from .config import settings
 from .models import (
-    ChatRequest,
-    ChatResponse,
     KnowledgeBase,
     MaxKBResponse,
     SearchRequest,
@@ -17,15 +15,17 @@ from .models import (
 class MaxKBClient:
     """Client for MaxKB API."""
 
-    def __init__(self, base_url: str | None = None, api_key: str | None = None):
+    def __init__(self, base_url: str | None = None, api_key: str | None = None, workspace_id: str | None = None):
         """Initialize MaxKB client.
 
         Args:
             base_url: MaxKB API base URL
             api_key: API key for authentication
+            workspace_id: MaxKB workspace ID
         """
         self.base_url = (base_url or settings.maxkb_api_base).rstrip("/")
         self.api_key = api_key or settings.maxkb_api_key
+        self.workspace_id = workspace_id or settings.maxkb_workspace_id
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -33,7 +33,7 @@ class MaxKBClient:
         self.client = httpx.AsyncClient(
             headers=self.headers,
             timeout=30.0,
-            follow_redirects=False,  # Don't follow redirects to catch auth errors
+            follow_redirects=False,
         )
 
     async def close(self) -> None:
@@ -82,7 +82,7 @@ class MaxKBClient:
         Returns:
             List of knowledge bases
         """
-        resp = await self._request("GET", "/dataset")
+        resp = await self._request("GET", f"/workspace/{self.workspace_id}/knowledge")
         if resp.code != 200 or not resp.data:
             return []
 
@@ -92,7 +92,7 @@ class MaxKBClient:
                 id=str(item.get("id", "")),
                 name=item.get("name", ""),
                 description=item.get("desc", ""),
-                document_count=item.get("document_count", 0),
+                document_count=item.get("document_count") or 0,
                 create_time=item.get("create_time", ""),
             )
             kb_list.append(kb)
@@ -107,7 +107,7 @@ class MaxKBClient:
         Returns:
             Knowledge base info or None if not found
         """
-        resp = await self._request("GET", f"/dataset/{kb_id}")
+        resp = await self._request("GET", f"/workspace/{self.workspace_id}/knowledge/{kb_id}")
         if resp.code != 200 or not resp.data:
             return None
 
@@ -116,7 +116,7 @@ class MaxKBClient:
             id=str(data.get("id", "")),
             name=data.get("name", ""),
             description=data.get("desc", ""),
-            document_count=data.get("document_count", 0),
+            document_count=data.get("document_count") or 0,
             create_time=data.get("create_time", ""),
         )
 
@@ -130,15 +130,15 @@ class MaxKBClient:
             Search results
         """
         payload = {
-            "query": request.query,
+            "query_text": request.query,
             "top_number": request.top_k,
-            "search_mode": "embedding",
-            "similarity": 0.6,
+            "search_mode": request.search_mode,
+            "similarity": request.similarity,
         }
 
         resp = await self._request(
             "POST",
-            f"/dataset/{request.knowledge_base_id}/hit_test",
+            f"/workspace/{self.workspace_id}/knowledge/{request.knowledge_base_id}/hit_test",
             json=payload,
         )
 
@@ -156,51 +156,3 @@ class MaxKBClient:
             results.append(result)
 
         return SearchResponse(results=results, total=len(results))
-
-    async def chat(self, request: ChatRequest) -> ChatResponse:
-        """Chat with knowledge base.
-
-        Args:
-            request: Chat request parameters
-
-        Returns:
-            Chat response with answer and references
-        """
-        # Build message history
-        messages = []
-        for msg in request.history:
-            messages.append({"role": msg.role, "content": msg.content})
-        messages.append({"role": "user", "content": request.message})
-
-        payload = {
-            "message": request.message,
-            "re_chat": False,
-            "stream": False,
-        }
-
-        # MaxKB API v2 uses /application/chat with application_id in payload
-        payload["application_id"] = request.knowledge_base_id
-        resp = await self._request(
-            "POST",
-            "/application/chat",
-            json=payload,
-        )
-
-        if resp.code != 200 or not resp.data:
-            return ChatResponse(answer="抱歉，无法获取回答。", references=[])
-
-        data = resp.data
-        answer = data.get("content", "")
-
-        # Extract references if available
-        references = []
-        for ref in data.get("reference", []):
-            result = SearchResult(
-                content=ref.get("content", ""),
-                title=ref.get("title", ""),
-                source=ref.get("source", ""),
-                similarity=ref.get("similarity", 0.0),
-            )
-            references.append(result)
-
-        return ChatResponse(answer=answer, references=references)

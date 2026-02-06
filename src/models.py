@@ -11,7 +11,7 @@ class KnowledgeBase(BaseModel):
     id: str = Field(description="Knowledge base ID")
     name: str = Field(description="Knowledge base name")
     description: str = Field(default="", description="Knowledge base description")
-    document_count: int = Field(default=0, description="Number of documents in the KB")
+    document_count: int | None = Field(default=0, description="Number of documents in the KB")
     create_time: str = Field(default="", description="Creation time")
 
 
@@ -29,7 +29,9 @@ class SearchRequest(BaseModel):
 
     query: str = Field(description="Search query")
     knowledge_base_id: str = Field(description="Target knowledge base ID")
-    top_k: int = Field(default=5, ge=1, le=20, description="Number of results to return")
+    top_k: int = Field(default=5, ge=1, le=50, description="Number of results to return (1-50, default 5)")
+    similarity: float = Field(default=0.6, ge=0.0, le=1.0, description="Similarity threshold (0.0-1.0, default 0.6)")
+    search_mode: str = Field(default="embedding", description="Search mode: embedding/keywords (default: embedding)")
 
 
 class SearchResponse(BaseModel):
@@ -37,32 +39,6 @@ class SearchResponse(BaseModel):
 
     results: list[SearchResult] = Field(default_factory=list, description="Search results")
     total: int = Field(default=0, description="Total results found")
-
-
-class ChatMessage(BaseModel):
-    """Chat message."""
-
-    role: str = Field(description="Message role: user/assistant")
-    content: str = Field(description="Message content")
-
-
-class ChatRequest(BaseModel):
-    """Chat request parameters."""
-
-    message: str = Field(description="User message")
-    knowledge_base_id: str = Field(description="Target knowledge base ID")
-    history: list[ChatMessage] = Field(
-        default_factory=list, description="Chat history"
-    )
-
-
-class ChatResponse(BaseModel):
-    """Chat response."""
-
-    answer: str = Field(description="AI answer")
-    references: list[SearchResult] = Field(
-        default_factory=list, description="Referenced documents"
-    )
 
 
 class MaxKBResponse(BaseModel):

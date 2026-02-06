@@ -5,12 +5,12 @@ import json
 from fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
-from starlette.routing import Route
+from starlette.routing import Route, Mount
 from starlette.middleware.cors import CORSMiddleware
 
 from .client import MaxKBClient
 from .config import settings
-from .models import ChatRequest, SearchRequest
+from .models import SearchRequest
 
 # Initialize MaxKB client
 maxkb_client: MaxKBClient | None = None
@@ -85,13 +85,17 @@ async def search_knowledge_base(
     query: str,
     knowledge_base_id: str,
     top_k: int = 5,
+    similarity: float = 0.6,
+    search_mode: str = "embedding",
 ) -> str:
     """在知识库中搜索相关内容。
 
     Args:
         query: 搜索查询文本
         knowledge_base_id: 要搜索的知识库 ID
-        top_k: 返回结果数量（1-20，默认 5）
+        top_k: 返回结果数量（1-50，默认 5）
+        similarity: 相似度阈值（0.0-1.0，默认 0.6）
+        search_mode: 搜索模式，可选 embedding（向量检索）或 keywords（关键词检索），默认 embedding
 
     Returns:
         包含搜索结果和相似度评分的 JSON 字符串
@@ -102,12 +106,16 @@ async def search_knowledge_base(
         query=query,
         knowledge_base_id=knowledge_base_id,
         top_k=top_k,
+        similarity=similarity,
+        search_mode=search_mode,
     )
 
     response = await client.search(request)
 
     result = {
         "query": query,
+        "search_mode": search_mode,
+        "similarity_threshold": similarity,
         "total": response.total,
         "results": [
             {
@@ -117,46 +125,6 @@ async def search_knowledge_base(
                 "similarity": r.similarity,
             }
             for r in response.results
-        ],
-    }
-
-    return json.dumps(result, ensure_ascii=False, indent=2)
-
-
-@mcp.tool()
-async def ask_question(
-    question: str,
-    knowledge_base_id: str,
-) -> str:
-    """向知识库提问并获取 AI 生成的答案。
-
-    Args:
-        question: 要问的问题
-        knowledge_base_id: 要查询的知识库 ID
-
-    Returns:
-        包含答案和引用文档的 JSON 字符串
-    """
-    client = await get_client()
-
-    request = ChatRequest(
-        message=question,
-        knowledge_base_id=knowledge_base_id,
-    )
-
-    response = await client.chat(request)
-
-    result = {
-        "question": question,
-        "answer": response.answer,
-        "references": [
-            {
-                "content": r.content,
-                "title": r.title,
-                "source": r.source,
-                "similarity": r.similarity,
-            }
-            for r in response.references
         ],
     }
 
@@ -223,16 +191,15 @@ def create_starlette_app(mcp_server: FastMCP) -> Starlette:
                 streams[0], streams[1], mcp_server._mcp_server.create_initialization_options()
             )
 
-    async def handle_messages(request):
-        """Handle POST messages from client."""
-        return await sse.handle_post_message(request.scope, request.receive, request._send)
+    # Use Mount for the messages endpoint to properly handle ASGI
+    routes = [
+        Route("/sse", endpoint=handle_sse),
+        Mount("/messages/", app=sse.handle_post_message),
+    ]
 
     app = Starlette(
         debug=True,
-        routes=[
-            Route("/sse", endpoint=handle_sse),
-            Route("/messages/", endpoint=handle_messages, methods=["POST"]),
-        ],
+        routes=routes,
     )
 
     # Add CORS middleware

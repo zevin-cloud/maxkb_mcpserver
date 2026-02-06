@@ -25,11 +25,14 @@ class Settings(BaseSettings):
     mcp_port: int = 3000  # Port for SSE transport
     mcp_host: str = "127.0.0.1"  # Host for SSE transport
 
+    # Workspace configuration
+    maxkb_workspace_id: str = "default"
+
     @property
     def maxkb_api_base(self) -> str:
         """Get MaxKB API base URL."""
         base = self.maxkb_base_url.rstrip("/")
-        return f"{base}/api"
+        return f"{base}/admin/api"
 
 
 # Global settings instance
