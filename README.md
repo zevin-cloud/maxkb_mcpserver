@@ -59,17 +59,6 @@ python -m src
 
 ## 外部系统配置
 
-### Dify 配置
-
-```json
-{
-  "mcpServers": {
-    "maxkb": {
-      "url": "http://your-server-ip:3000/sse"
-    }
-  }
-}
-```
 
 ### Claude Desktop 配置
 
